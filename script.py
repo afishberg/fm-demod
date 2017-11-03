@@ -5,6 +5,7 @@ import scipy
 from scipy import signal
 
 from scipy.fftpack import fft, ifft
+from numpy.fft import fftshift
 import matplotlib.pyplot as plt
 
 # ==============================================================================
@@ -28,8 +29,9 @@ def test_fft():
     plt.plot(np.arange(len(x)),x)
     plt.show()
 
-    X = np.fft.fft(x)
-    plot_fft(X,'Test FFT',True)
+    X = fft(x)
+    Xs = fftshift(X)
+    plot_fft(Xs,'Test FFT',True)
 
 """
 Plots a provided FFT
@@ -42,14 +44,9 @@ def plot_fft(X,title='FFT',normalize=False):
         X /= len(X)
 
     # calculates xaxis and yaxis for plot
-    freq = np.angle(X)/pi
+    freq = np.arange(len(X)) / len(X) * 2 - 1
     resp = np.absolute(X)
-
-    # orders values properly for plot
-    seq = freq.argsort()
-    freq = freq[seq]
-    resp = resp[seq]
-
+    
     # plots FFT
     plt.plot(freq,resp)
     plt.title(title)
@@ -57,7 +54,7 @@ def plot_fft(X,title='FFT',normalize=False):
     plt.ylabel('Freq Response')
     plt.grid()
     axes = plt.gca()
-    axes.set_xlim([-1,1])
+    #axes.set_xlim([-1,1])
     plt.show()
 
 """
@@ -82,7 +79,7 @@ def test_filter():
     lpf = signal.remez(256, [0, 0.1, 0.125, .5], [1, 0])
     plot_filter_response(lpf)
 
-    X = fft(lpf)
+    X = fftshift(fft(lpf))
     plot_fft(X,'lpf')
 
 # ==============================================================================
@@ -104,7 +101,7 @@ def dt_channel_select(x,w0):
     lpf = signal.remez(256, [0, 0.1, 0.125, .5], [1, 0])
     plot_filter_response(lpf)
 
-    X = fft(lpf)
+    X = np.fft.fftshift(np.fft.fft(lpf))
     plot_fft(X,'lpf')
 
 # ==============================================================================
@@ -120,5 +117,5 @@ if __name__ == '__main__':
     # demod('blind_test.raw', -1.2916)
 
     # tests
-    test_fft()
-    #test_filter()
+    #test_fft()
+    test_filter()
