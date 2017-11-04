@@ -6,7 +6,8 @@ from scipy import signal
 
 from scipy.fftpack import fft, ifft
 from numpy.fft import fftshift
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt 
+import sounddevice as sd
 
 # ==============================================================================
 # DEBUG
@@ -137,13 +138,27 @@ def differentiator_bot(x):
 
 # ==============================================================================
 
+# TODO Don't set magic consts in func
 def deemphasis_filter(x):
-    None
+    T = 1/256e3
+    td = 75e-6
+    numer = np.array([1,1])
+    denom = np.array([1+np.tan(T/(2*td)),1-np.tan(T/(2*td))])
+    print (numer,denom)
+    y = signal.lfilter(numer,denom,x)
+    return y
 
 # ==============================================================================
 
 def mono_select(x):
-    None
+    lpf = signal.remez(512, [0, 15e3, 16e3, 128e3], [1, 0], Hz=256e3)
+    plot_freq_response(lpf)
+    #lpf = signal.remez(512, [0, 15/128, 16/128, .5], [1, 0])
+    lpf = signal.remez(512, [0, 15/256, 16/256, .5], [1, 0])
+    plot_freq_response(lpf)
+    filtered  = signal.convolve(x,lpf)
+    decimated = filtered[0::4]
+    return decimated
 
 # ==============================================================================
 
@@ -152,13 +167,24 @@ def mono_select(x):
 def demod(infile, w0):
     # load data
     samples = scipy.fromfile(open(infile), dtype=scipy.complex64)
+    #x = samples
 
-    x = samples[0:len(samples)//20] # only use 0.5 sec of data for quick dbg
+    x = samples[0:len(samples)//10] # only use 1 sec of data for quick dbg
     #plot_freq_response(x)
 
     y = dt_channel_select(x,w0)
 
     m = freq_discriminator(y)
+    #plot_freq_response(m)
+
+    md = deemphasis_filter(m)
+    #plot_freq_response(md)
+
+    sound = mono_select(md)
+    plot_freq_response(sound)
+
+    sd.play(sound,64e3)
+    sd.wait()
 
 if __name__ == '__main__':
     demod('blind_test.raw', -1.2916)
