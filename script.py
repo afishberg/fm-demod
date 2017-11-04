@@ -4,7 +4,7 @@
 # ==============================================================================
 import numpy as np
 from numpy import pi
-from numpy.fft import fft, fftshift
+from numpy.fft import fft, ifft, fftshift
 
 import scipy
 from scipy import signal
@@ -156,7 +156,7 @@ def differentiator_bot(x,M):
     freqs = np.arange(0,2*pi,2*pi/len(x))
     delay = np.exp(-1j*freqs*M/2)
 
-    return conj*delay
+    return ifft(fft(conj)*delay)
 
 # ==============================================================================
 
@@ -220,8 +220,8 @@ def demod(infile, w0):
     samples = scipy.fromfile(open(infile), dtype=scipy.complex64)
 
     # select how much data to process
-    #x = samples
-    x = samples[0:len(samples)//20] # only use 0.5 sec of data for quick debug
+    x = samples
+    #x = samples[0:len(samples)//20] # only use 0.5 sec of data for quick debug
     #plot_fft(x,'Input Samples')
 
     # Project 1 Section 2
