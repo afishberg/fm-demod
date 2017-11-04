@@ -17,13 +17,14 @@ import sounddevice as sd
 # Debug Plotting Functions
 # ==============================================================================
 
-PLOT_ON = True
+PLOT_ON = False
+DB_ON = True
 
 """
 Takes the Fourier transform of samples, shifts them, and plots them
 """
 def plot_fft(x,title='FFT',logplot=False,normalize=False):
-    X = fftshift(fft(x))
+    X = fftshift(fft(x,n=2048))
     plot_freq(X,title,logplot,normalize)
 
 """
@@ -31,7 +32,7 @@ Plots samples from a Fourier transform
 """
 def plot_freq(X,title='FFT',logplot=False,normalize=False):
     # checks if plotting has been disabled
-    global PLOT_ON
+    global PLOT_ON, DB_ON
     if not PLOT_ON:
         return
 
@@ -44,10 +45,11 @@ def plot_freq(X,title='FFT',logplot=False,normalize=False):
     resp = np.abs(X)
     
     # plots FFT
-    if not logplot:
-        plt.plot(freq,resp)
+    if logplot or DB_ON:
+        plt.plot(freq,20*np.log10(resp))
+        #plt.semilogy(freq,resp)
     else:
-        plt.semilogy(freq,resp)
+        plt.plot(freq,resp)
     plt.title(title)
     plt.xlabel('Normalized Freq')
     plt.ylabel('Freq Response')
@@ -74,17 +76,17 @@ def channel_select(x,w0):
     # modulate to baseband
     n = np.arange(len(x))
     baseband = x * np.exp(-1j*w0*n)
-    #plot_fft(baseband,'Modulated Signal to Baseband')
+    plot_fft(baseband,'Modulated Signal to Baseband')
 
     # low-pass filter
     lpf = signal.remez(512, [0, 100e3, 128e3, 1.024e6], [1, 0], Hz=2.048e6)
-    #plot_fft(lpf,'Pre-Decimation Low-Pass Filter')
+    plot_fft(lpf,'Pre-Decimation Low-Pass Filter')
 
     filtered  = signal.convolve(baseband,lpf)
-    #plot_fft(filtered,'Low-Pass Filtered Baseband Signal')
+    plot_fft(filtered,'Low-Pass Filtered Baseband Signal')
 
     decimated = filtered[0::8]
-    #plot_fft(decimated,'Decimated Filtered Baseband Signal (2.048 MHz -> 256 kHz)')
+    plot_fft(decimated,'Decimated Filtered Baseband Signal (2.048 MHz -> 256 kHz)')
 
     return decimated
 
@@ -100,9 +102,9 @@ M :: order of differentiator (i.e. length = M+1)
 Outlined in Project 1 Section 3 Part A. Also see Figure 4.
 """
 def freq_discriminator(x, M):
-    #plot_fft(x,'Limiter Input')
+    plot_fft(x,'Limiter Input')
     y1 = limiter(x)
-    #plot_fft(y1,'Limiter Output')
+    plot_fft(y1,'Limiter Output')
 
     top = differentiator_top(y1,M)
     bot = differentiator_bot(y1,M)
@@ -136,10 +138,10 @@ Outlined in Project 1 Section 3 Part A. Also see Figure 4.
 """
 def differentiator_top(x,M):
     ddt = signal.remez(M+1, [0, 128e3], [1], Hz=256e3, type='differentiator')
-    #plot_fft(ddt,'Differentiator Frequency Response')
+    plot_fft(ddt,'Differentiator Frequency Response')
 
     filtered = signal.convolve(x,ddt)
-    return filtered[0:-M]
+    return filtered#[0:-M]
 
 """
 Implmentation of conjugate and non-integer delay, or the bot path in frequency
@@ -153,10 +155,18 @@ Outlined in Project 1 Section 3 Part A. Also see Figure 4.
 def differentiator_bot(x,M):
     conj = np.conj(x)
 
-    freqs = np.arange(0,2*pi,2*pi/len(x))
-    delay = np.exp(-1j*freqs*M/2)
+    #freqs = np.arange(0,2*pi,2*pi/len(x))
+    #delay = np.exp(-1j*freqs*M/2)
 
-    return ifft(fft(conj)*delay)
+    n = np.arange(0,M+1)
+    c = pi*(n-M/2)
+    h = np.sin(c)/c
+
+    #return ifft(fft(conj)*delay)
+
+    conv = signal.convolve(conj,h)
+    return conv
+
 
 # ==============================================================================
 
@@ -197,13 +207,13 @@ Outlined in Project 1 Section 3 Parts C and D.
 """
 def mono_select(x):
     lpf = signal.remez(512, [0, 15e3, 18e3, 128e3], [1, 0], Hz=256e3)
-    #plot_fft(lpf,'Mono Select Low-Pass Filter')
+    plot_fft(lpf,'Mono Select Low-Pass Filter')
 
     filtered  = signal.convolve(x,lpf)
-    #plot_fft(filtered,'Low-Pass Filtered Mono Select')
+    plot_fft(filtered,'Low-Pass Filtered Mono Select')
 
     decimated = filtered[0::4]
-    #plot_fft(decimated,'Decimated Mono Select Signal (256 kHz -> 64 kHz)')
+    plot_fft(decimated,'Decimated Mono Select Signal (256 kHz -> 64 kHz)')
 
     return decimated
 
@@ -222,27 +232,27 @@ def demod(infile, w0):
     # select how much data to process
     x = samples
     #x = samples[0:len(samples)//20] # only use 0.5 sec of data for quick debug
-    #plot_fft(x,'Input Samples')
+    plot_fft(x,'Input Samples')
 
     # Project 1 Section 2
-    #plot_fft(x,'Channel Select Input')
+    plot_fft(x,'Channel Select Input')
     y = channel_select(x,w0)
-    #plot_fft(y,'Channel Select Output')
+    plot_fft(y,'Channel Select Output')
 
     # Project 1 Section 3 Part A
-    #plot_fft(y,'Frequency Discriminator Input')
+    plot_fft(y,'Frequency Discriminator Input')
     m = freq_discriminator(y,511)
-    #plot_fft(m,'Frequency Discriminator Output')
+    plot_fft(m,'Frequency Discriminator Output')
 
     # Project 1 Section 3 Part B
-    #plot_fft(m,'Deemphasis Filter Input')
+    plot_fft(m,'Deemphasis Filter Input')
     md = deemphasis_filter(m, 1/256e3, 75e-6)
-    #plot_fft(md,'Deemphasis Filter Output')
+    plot_fft(md,'Deemphasis Filter Output')
 
     # Project 1 Section 3 Parts C and D
-    #plot_fft(md,'Mono Select Input')
+    plot_fft(md,'Mono Select Input')
     a = mono_select(md)
-    #plot_fft(a,'Mono Select Output')
+    plot_fft(a,'Mono Select Output')
 
     sd.play(a,64e3)
     sd.wait()
