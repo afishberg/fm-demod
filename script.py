@@ -17,22 +17,23 @@ import sounddevice as sd
 # Debug Plotting Functions
 # ==============================================================================
 
-PLOT_ON = False
-DB_ON = True
+PLOT_ON = True
+SAVE_FIG = True
+FIG_COUNT = 0
 
 """
 Takes the Fourier transform of samples, shifts them, and plots them
 """
-def plot_fft(x,title='FFT',logplot=False,normalize=False):
-    X = fftshift(fft(x,n=2048))
-    plot_freq(X,title,logplot,normalize)
+def plot_fft(x,title='FFT',phaseplot=False,dbplot=True,normalize=False):
+    X = fftshift(fft(x,n=4096))
+    plot_freq(X,title,phaseplot,dbplot,normalize)
 
 """
 Plots samples from a Fourier transform
 """
-def plot_freq(X,title='FFT',logplot=False,phaseplot=False,normalize=False):
+def plot_freq(X,title='FFT',phaseplot=False,dbplot=True,normalize=False):
     # checks if plotting has been disabled
-    global PLOT_ON, DB_ON
+    global PLOT_ON, SAVE_FIG, FIG_COUNT
     if not PLOT_ON:
         return
 
@@ -50,12 +51,11 @@ def plot_freq(X,title='FFT',logplot=False,phaseplot=False,normalize=False):
 
         plt.plot(freq,norm)
         plt.ylabel('Normalized Phase')
-    elif logplot or DB_ON:
+    elif dbplot:
         resp = np.abs(X)
         norm = 20*np.log10(resp)
 
         plt.plot(freq,norm)
-        #plt.semilogy(freq,resp)
         plt.ylabel('Magnitude (dB)')
     else:
         resp = np.abs(X)
@@ -70,7 +70,14 @@ def plot_freq(X,title='FFT',logplot=False,phaseplot=False,normalize=False):
     axes = plt.gca()
     axes.set_xlim([-1,1])
 
-    plt.show()
+    if SAVE_FIG:
+        fname = 'fig%02d.png' % FIG_COUNT
+        plt.savefig(fname)
+        print('Saved %s' % fname)
+        FIG_COUNT += 1
+        plt.gcf().clear()
+    else:
+        plt.show()
 
 # ==============================================================================
 
@@ -117,14 +124,15 @@ Outlined in Project 1 Section 3 Part A. Also see Figure 4.
 """
 def freq_discriminator(x, M):
     plot_fft(x,'Limiter Input')
+    plot_fft(x,'Limiter Input (Phase)',phaseplot=True)
     y1 = limiter(x)
     plot_fft(y1,'Limiter Output')
+    plot_fft(y1,'Limiter Output (Phase)',phaseplot=True)
 
     top = differentiator_top(y1,M)
     bot = differentiator_bot(y1,M)
 
     y2 = top*bot
-    #print('y2:',y2)
 
     m = np.imag(y2)
     return m
@@ -169,18 +177,19 @@ Outlined in Project 1 Section 3 Part A. Also see Figure 4.
 def differentiator_bot(x,M):
     conj = np.conj(x)
 
-    #freqs = np.arange(0,2*pi,2*pi/len(x))
-    #delay = np.exp(-1j*freqs*M/2)
-
     n = np.arange(0,M+1)
     c = pi*(n-M/2)
     h = np.sin(c)/c
 
-    #return ifft(fft(conj)*delay)
-
     conv = signal.convolve(conj,h)
     return conv
 
+"""
+Question:
+freqs = np.arange(0,2*pi,2*pi/len(x))
+delay = np.exp(-1j*freqs*M/2)
+return ifft(fft(conj)*delay)
+"""
 
 # ==============================================================================
 
@@ -205,8 +214,8 @@ def deemphasis_filter(x,T,tau_d):
         1+np.tan(T/(2*tau_d)),
         1-np.tan(T/(2*tau_d))
     ])
-    #print('numer:',numer)
-    #print('denom:',denom)
+    print('numer:',numer,'denom:',denom)
+
     y = signal.lfilter(numer,denom,x)
     return y
 
@@ -268,6 +277,7 @@ def demod(infile, w0):
     a = mono_select(md)
     plot_fft(a,'Mono Select Output')
 
+    plot_fft(a,'Final Audio')
     sd.play(a,64e3)
     sd.wait()
 
