@@ -20,6 +20,7 @@ import sounddevice as sd
 PLOT_ON = True
 SAVE_FIG = True
 FIG_COUNT = 0
+PLAY_AUDIO = False
 
 """
 Takes the Fourier transform of samples, shifts them, and plots them
@@ -160,7 +161,7 @@ Outlined in Project 1 Section 3 Part A. Also see Figure 4.
 """
 def differentiator_top(x,M):
     ddt = signal.remez(M+1, [0, 128e3], [1], Hz=256e3, type='differentiator')
-    plot_fft(ddt,'Differentiator Frequency Response')
+    plot_fft(ddt,'Differentiator Frequency Response',dbplot=False)
 
     filtered = signal.convolve(x,ddt)
     return filtered#[0:-M]
@@ -214,7 +215,7 @@ def deemphasis_filter(x,T,tau_d):
         1+np.tan(T/(2*tau_d)),
         1-np.tan(T/(2*tau_d))
     ])
-    print('numer:',numer,'denom:',denom)
+    #print('numer:',numer,'denom:',denom)
 
     y = signal.lfilter(numer,denom,x)
     return y
@@ -278,8 +279,11 @@ def demod(infile, w0):
     plot_fft(a,'Mono Select Output')
 
     plot_fft(a,'Final Audio')
-    sd.play(a,64e3)
-    sd.wait()
+
+    global PLAY_AUDIO
+    if PLAY_AUDIO:
+        sd.play(a,64e3)
+        sd.wait()
 
 # ==============================================================================
 
