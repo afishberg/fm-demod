@@ -4,7 +4,7 @@
 # ==============================================================================
 import numpy as np
 from numpy import pi
-from numpy.fft import fft, ifft, fftshift
+from numpy.fft import fft, fftshift
 
 import scipy
 from scipy import signal
@@ -30,7 +30,7 @@ def plot_fft(x,title='FFT',logplot=False,normalize=False):
 """
 Plots samples from a Fourier transform
 """
-def plot_freq(X,title='FFT',logplot=False,normalize=False):
+def plot_freq(X,title='FFT',logplot=False,phaseplot=False,normalize=False):
     # checks if plotting has been disabled
     global PLOT_ON, DB_ON
     if not PLOT_ON:
@@ -40,22 +40,36 @@ def plot_freq(X,title='FFT',logplot=False,normalize=False):
     if normalize:
         X /= len(X)
 
-    # calculates xaxis and yaxis for plot
+    # calculates xaxis for plot
     freq = np.arange(len(X)) / len(X) * 2 - 1
-    resp = np.abs(X)
     
     # plots FFT
-    if logplot or DB_ON:
-        plt.plot(freq,20*np.log10(resp))
+    if phaseplot:
+        resp = np.angle(X)
+        norm = resp/pi
+
+        plt.plot(freq,norm)
+        plt.ylabel('Normalized Phase')
+    elif logplot or DB_ON:
+        resp = np.abs(X)
+        norm = 20*np.log10(resp)
+
+        plt.plot(freq,norm)
         #plt.semilogy(freq,resp)
+        plt.ylabel('Magnitude (dB)')
     else:
+        resp = np.abs(X)
+
         plt.plot(freq,resp)
+        plt.ylabel('Magnitude')
+
     plt.title(title)
     plt.xlabel('Normalized Freq')
-    plt.ylabel('Freq Response')
+
     plt.grid()
     axes = plt.gca()
     axes.set_xlim([-1,1])
+
     plt.show()
 
 # ==============================================================================
